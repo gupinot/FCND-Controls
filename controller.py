@@ -108,6 +108,7 @@ class NonlinearController(object):
             
         Returns: 2-element numpy array, desired rollrate (p) and pitchrate (q) commands in radians/s
         """
+        attitude_target =
         return np.array([0.0, 0.0])
     
     def body_rate_control(self, body_rate_cmd, body_rate):
@@ -119,7 +120,8 @@ class NonlinearController(object):
             
         Returns: 3-element numpy array, desired roll moment, pitch moment, and yaw moment commands in Newtons*meters
         """
-        return np.array([0.0, 0.0, 0.0])
+        return body_rate_cmd - body_rate
+        #return np.array([0.0, 0.0, 0.0])
     
     def yaw_control(self, yaw_cmd, yaw):
         """ Generate the target yawrate
@@ -130,5 +132,6 @@ class NonlinearController(object):
         
         Returns: target yawrate in radians/sec
         """
-        return 0.0
+
+        return yaw_cmd - yaw
     
