@@ -7,6 +7,8 @@ modified for all the changes required to get it working for controls.
 
 import time
 from enum import Enum
+import msgpack
+import math
 
 import numpy as np
 
@@ -106,8 +108,9 @@ class ControlsFlyer(UnityDrone):
                 #self.all_waypoints = self.calculate_box()
                 (self.position_trajectory,
                  self.time_trajectory,
-                 self.yaw_trajectory) = self.load_test_trajectory(time_mult=0.5)
+                 self.yaw_trajectory) = self.load_test_trajectory(time_mult=0.8)
                 self.all_waypoints = self.position_trajectory.copy()
+                #self.send_waypoints()
                 self.waypoint_number = -1
                 self.waypoint_transition()
         elif self.flight_state == States.WAYPOINT:
@@ -186,6 +189,12 @@ class ControlsFlyer(UnityDrone):
         self.stop()
         self.in_mission = False
         self.flight_state = States.MANUAL
+
+    def send_waypoints(self):
+        print("Sending waypoints to simulator ...")
+        input = [[math.floor(p[0]), math.floor(p[1]), math.floor(p[2]), 0] for p in self.all_waypoints]
+        data = msgpack.dumps(input)
+        self.connection._master.write(data)
 
     def start(self):
         self.start_log("Logs", "NavLog.txt")
