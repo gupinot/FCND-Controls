@@ -108,7 +108,7 @@ class ControlsFlyer(UnityDrone):
                 #self.all_waypoints = self.calculate_box()
                 (self.position_trajectory,
                  self.time_trajectory,
-                 self.yaw_trajectory) = self.load_test_trajectory(time_mult=0.8)
+                 self.yaw_trajectory) = self.load_test_trajectory(time_mult=0.5)
                 self.all_waypoints = self.position_trajectory.copy()
                 #self.send_waypoints()
                 self.waypoint_number = -1

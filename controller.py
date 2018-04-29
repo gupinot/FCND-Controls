@@ -21,16 +21,18 @@ class NonlinearController(object):
     def __init__(self,
                  z_k_p=20.0,
                  z_k_d=6.0,
-                 x_k_p=0.15,
-                 x_k_d=0.15,
-                 y_k_p=0.15,
-                 y_k_d=0.15,
-                 k_p_roll=15.0,
-                 k_p_pitch=15.0,
-                 k_p_yaw=3.0,
-                 k_p_p=15.0,
-                 k_p_q=15.0,
-                 k_p_r=5.0):
+                 x_k_p=0.25,
+                 x_k_d=0.25,
+                 y_k_p=0.25,
+                 y_k_d=0.25,
+                 k_p_roll=4.0,
+                 k_p_pitch=4.0,
+                 k_p_yaw=5.0,
+                 k_p_p=27.0,
+                 k_p_q=27.0,
+                 k_p_r=10.0,
+                 max_roll_rad=1.0,
+                 max_pitch_rad=1.0):
         """Initialize the controller object and control gains"""
 
         self.z_k_p = z_k_p
@@ -45,6 +47,8 @@ class NonlinearController(object):
         self.k_p_p = k_p_p
         self.k_p_q = k_p_q
         self.k_p_r = k_p_r
+        self.max_roll_rad=max_roll_rad
+        self.max_pitch_rad=max_pitch_rad
 
 
     def trajectory_control(self, position_trajectory, yaw_trajectory, time_trajectory, current_time):
@@ -107,22 +111,22 @@ class NonlinearController(object):
             
         Returns: desired vehicle 2D acceleration in the local frame [north, east]
         """
-        x_target, y_target = local_position_cmd
-        x_dot_target, y_dot_target = local_velocity_cmd
+        x_cmd, y_cmd = local_position_cmd
+        x_dot_cmd, y_dot_cmd = local_velocity_cmd
 
         x, y = local_position
         x_dot, y_dot = local_velocity
 
 
-        x_dot_dot_target, y_dot_dot_target = acceleration_ff
+        x_dot_dot_acc, y_dot_dot_acc = acceleration_ff
 
-        x_dot_err = x_dot_target - x_dot
-        x_err = x_target - x
-        x_dot_dot = self.x_k_p * x_err + self.x_k_d * x_dot_err + x_dot_dot_target
+        x_dot_err = x_dot_cmd - x_dot
+        x_err = x_cmd - x
+        x_dot_dot = self.x_k_p * x_err + self.x_k_d * x_dot_err + x_dot_dot_acc
 
-        y_dot_err = y_dot_target - y_dot
-        y_err = y_target - y
-        y_dot_dot = self.x_k_p * y_err + self.y_k_d * y_dot_err + y_dot_dot_target
+        y_dot_err = y_dot_cmd - y_dot
+        y_err = y_cmd - y
+        y_dot_dot = self.x_k_p * y_err + self.y_k_d * y_dot_err + y_dot_dot_acc
 
         return np.array([-x_dot_dot, -y_dot_dot])
     
@@ -171,23 +175,24 @@ class NonlinearController(object):
 
         rot_mat = euler2RM(attitude[0], attitude[1], attitude[2])
 
-        b_x = rot_mat[0, 2]
-        b_x_err = b_x_c - b_x
+        b_x_err = b_x_c - rot_mat[0, 2]
         b_x_p_term = self.k_p_roll * b_x_err
 
-        b_y = rot_mat[1, 2]
-        b_y_err = b_y_c - b_y
+        b_y_err = b_y_c - rot_mat[1, 2]
         b_y_p_term = self.k_p_pitch * b_y_err
-
-        b_x_commanded_dot = b_x_p_term
-        b_y_commanded_dot = b_y_p_term
 
         rot_mat1 = np.array([[rot_mat[1, 0], -rot_mat[0, 0]], [rot_mat[1, 1], -rot_mat[0, 1]]]) / rot_mat[2, 2]
 
-        rot_rate = np.matmul(rot_mat1, np.array([b_x_commanded_dot, b_y_commanded_dot]).T)
+        rot_rate = np.matmul(rot_mat1, np.array([b_x_p_term, b_y_p_term]).T)
 
         p_c = rot_rate[0]
         q_c = rot_rate[1]
+
+        #if max angle is reached, no more rotation requested
+        if attitude[0] > self.max_roll_rad or attitude[0] < -self.max_roll_rad:
+            p_c =0.0
+        if attitude[1] > self.max_pitch_rad or attitude[1] < -self.max_pitch_rad:
+            q_c =0.0
 
         return np.array([p_c, q_c])
     
@@ -234,6 +239,7 @@ class NonlinearController(object):
             yaw_err = yaw_err - 2.0*np.pi
         elif yaw_err < -np.pi:
             yaw_err = yaw_err + 2.0*np.pi
+
         r_c = self.k_p_yaw * yaw_err
 
         return r_c
